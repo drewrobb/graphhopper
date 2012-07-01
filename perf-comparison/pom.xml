@@ -13,6 +13,10 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <lucene.version>4.0-SNAPSHOT</lucene.version> 
+        <!-- exclude lucene 4 as it makes problems with neo4j even if they use an old version!
+        <lucene.version>3.6</lucene.version> 
+        -->
     </properties>
 
     <dependencies>
@@ -27,7 +31,7 @@
             <version>2.0.0</version>
         </dependency>
         
-          <!-- just for some minor stats. released at https://github.com/karussell/plotter -->
+        <!-- just for some minor stats. released at https://github.com/karussell/plotter -->
         <dependency>
             <groupId>de.genvlin</groupId>
             <artifactId>plotter</artifactId>
@@ -37,9 +41,13 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
-            <version>3.6.0</version>
+            <version>${lucene.version}</version>
         </dependency>
-        
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analyzers-common</artifactId>
+            <version>${lucene.version}</version>            
+        </dependency> 
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j</artifactId>
@@ -79,12 +87,13 @@
             </snapshots>
         </repository>
         
-        <!-- for de.genvlin -->
+        <!-- for de.genvlin 
         <repository>            
             <id>karussell_snapshot</id>
             <name>karussell snapshots</name>
             <url>https://github.com/karussell/mvnrepo/raw/master/snapshots</url>
         </repository>
+        -->
         
         
         <!--
