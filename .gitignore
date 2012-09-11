@@ -11,3 +11,6 @@ core/*.osm
 tinker*db
 android-example/gen/
 android-example/bin/
+android-example/berlin.map
+android-example/berlin.osm
+android-example/graph-berlin.osm/
