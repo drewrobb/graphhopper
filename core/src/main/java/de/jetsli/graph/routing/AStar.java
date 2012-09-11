@@ -16,13 +16,11 @@
 package de.jetsli.graph.routing;
 
 import de.jetsli.graph.coll.MyOpenBitSet;
-import de.jetsli.graph.reader.EdgeFlags;
 import de.jetsli.graph.storage.EdgeEntry;
 import de.jetsli.graph.storage.Graph;
 import de.jetsli.graph.util.ApproxCalcDistance;
 import de.jetsli.graph.util.CalcDistance;
 import de.jetsli.graph.util.EdgeIterator;
-import de.jetsli.graph.util.GraphUtility;
 import gnu.trove.map.TIntObjectMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import java.util.PriorityQueue;
@@ -63,7 +61,7 @@ public class AStar extends AbstractRoutingAlgorithm {
         double tmpLat = graph.getLatitude(from);
         double tmpLon = graph.getLongitude(from);
         double currWeightToGoal = dist.calcDistKm(toLat, toLon, tmpLat, tmpLon);
-        currWeightToGoal = applyWeight(currWeightToGoal);
+        currWeightToGoal = weightCalc.apply(currWeightToGoal);
         double distEstimation = 0 + currWeightToGoal;
         AStarEdge fromEntry = new AStarEdge(from, distEstimation, 0);
         AStarEdge currEdge = fromEntry;
@@ -75,13 +73,13 @@ public class AStar extends AbstractRoutingAlgorithm {
                 if (closedSet.contains(neighborNode))
                     continue;
 
-                float alreadyVisitedWeight = (float) getWeight(iter) + currEdge.weightToCompare;
+                float alreadyVisitedWeight = (float) weightCalc.getWeight(iter) + currEdge.weightToCompare;
                 AStarEdge nEdge = map.get(neighborNode);
                 if (nEdge == null || nEdge.weightToCompare > alreadyVisitedWeight) {
                     tmpLat = graph.getLatitude(neighborNode);
                     tmpLon = graph.getLongitude(neighborNode);
                     currWeightToGoal = dist.calcDistKm(toLat, toLon, tmpLat, tmpLon);
-                    currWeightToGoal = applyWeight(currWeightToGoal);
+                    currWeightToGoal = weightCalc.apply(currWeightToGoal);
                     distEstimation = alreadyVisitedWeight + currWeightToGoal;
 
                     if (nEdge == null) {
@@ -107,23 +105,17 @@ public class AStar extends AbstractRoutingAlgorithm {
         }
 
         // extract path from shortest-path-tree
-        Path path = new Path();
+        Path path = new Path(weightCalc);
         while (currEdge.prevEntry != null) {
             int tmpFrom = currEdge.node;
             path.add(tmpFrom);
             currEdge = (AStarEdge) currEdge.prevEntry;
-            path.updateProperties(graph.getIncoming(tmpFrom), currEdge.node);
+            path.calcWeight(graph.getIncoming(tmpFrom), currEdge.node);
         }
         path.add(fromEntry.node);
         path.reverseOrder();
         return path;
-    }
-
-    private double applyWeight(double currDistToGoal) {
-        if (AlgoType.FASTEST.equals(type))
-            return currDistToGoal / EdgeFlags.MAX_SPEED;
-        return currDistToGoal;
-    }
+    }    
 
     private static class AStarEdge extends EdgeEntry {
 

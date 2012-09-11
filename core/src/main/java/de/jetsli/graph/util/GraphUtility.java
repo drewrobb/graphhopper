@@ -21,6 +21,8 @@ import gnu.trove.set.hash.TIntHashSet;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is introduced as a helper to avoid cluttering the Graph interface with all the common
@@ -29,6 +31,8 @@ import java.util.List;
  * @author Peter Karich, info@jetsli.de
  */
 public class GraphUtility {
+
+    private static Logger logger = LoggerFactory.getLogger(GraphUtility.class);
 
     /**
      * @throws could throw exception if uncatched problems like index out of bounds etc
@@ -147,5 +151,27 @@ public class GraphUtility {
             return graph.getOutgoing(index);
         else
             return graph.getIncoming(index);
+    }
+
+    public static void printInfo(final Graph g, int startNode, final int counts) {
+        new XFirstSearch() {
+            int counter = 0;
+
+            @Override protected boolean goFurther(int nodeId) {
+                System.out.println(getNodeInfo(g, nodeId));
+                if (counter++ > counts)
+                    return false;
+                return true;
+            }
+        }.start(g, startNode, false);
+    }
+
+    public static String getNodeInfo(Graph g, int nodeId) {
+        EdgeIterator iter = g.getOutgoing(nodeId);
+        String str = nodeId + ":" + g.getLatitude(nodeId) + "," + g.getLongitude(nodeId) + "\n";
+        while (iter.next()) {
+            str += "  ->" + iter.node() + "\t" + BitUtil.toBitString(iter.flags(), 8) + "\n";
+        }
+        return str;
     }
 }

@@ -13,26 +13,33 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package de.jetsli.graph.routing;
+package de.jetsli.graph.routing.util;
 
-import de.jetsli.graph.routing.util.WeightCalculation;
+import de.jetsli.graph.util.EdgeIterator;
 
 /**
- * Calculates the shortest path from the specified node ids.
- *
- * @author Peter Karich, info@jetsli.de
+ * @author Peter Karich
  */
-public interface RoutingAlgorithm {
+public class ShortestCalc implements WeightCalculation {
 
-    /**
-     * Calculates the fastest or shortest path
-     */
-    Path calcPath(int from, int to);
+    public static ShortestCalc DEFAULT = new ShortestCalc();
 
-    RoutingAlgorithm setType(WeightCalculation calc);
+    @Override
+    public double getWeight(EdgeIterator iter) {
+        return iter.distance();
+    }
 
-    /**
-     * Make sure you reuse this instance from the same thread
-     */
-    RoutingAlgorithm clear();
+    @Override
+    public double apply(double currDistToGoal) {
+        return currDistToGoal;
+    }
+
+    @Override
+    public double apply(double currDistToGoal, int flags) {
+        return currDistToGoal;
+    }
+
+    @Override public String toString() {
+        return "SHORTEST";
+    }
 }

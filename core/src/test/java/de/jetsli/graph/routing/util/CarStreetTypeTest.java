@@ -13,53 +13,49 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package de.jetsli.graph.reader;
+package de.jetsli.graph.routing.util;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
 import static org.junit.Assert.*;
+import org.junit.Test;
 
 /**
  *
  * @author Peter Karich
  */
-public class CarFlagsTest {
+public class CarStreetTypeTest {
 
     @Test
     public void testBasics() {
-        EdgeFlags fl = new EdgeFlags(EdgeFlags.create(true));
+        CarStreetType fl = new CarStreetType(CarStreetType.flagsDefault(true));
         assertTrue(fl.isForward());
         assertTrue(fl.isBackward());
 
-        fl = new EdgeFlags(EdgeFlags.create(false));
+        fl = new CarStreetType(CarStreetType.flagsDefault(false));
         assertTrue(fl.isForward());
         assertFalse(fl.isBackward());
-        assertEquals(EdgeFlags.DEFAULT_SPEED, fl.getSpeedPart());
+        assertEquals(CarStreetType.DEFAULT_SPEED, fl.getSpeedPart());
     }
 
     @Test
     public void testSwapDir() {
-        EdgeFlags fl = new EdgeFlags(EdgeFlags.swapDirection(EdgeFlags.create(true)));
+        CarStreetType fl = new CarStreetType(CarStreetType.swapDirection(CarStreetType.flagsDefault(true)));
         assertTrue(fl.isForward());
         assertTrue(fl.isBackward());
-        assertEquals(EdgeFlags.DEFAULT_SPEED, fl.getSpeedPart());
+        assertEquals(CarStreetType.DEFAULT_SPEED, fl.getSpeedPart());
 
-        fl = new EdgeFlags(EdgeFlags.swapDirection(EdgeFlags.create(false)));
+        fl = new CarStreetType(CarStreetType.swapDirection(CarStreetType.flagsDefault(false)));
         assertFalse(fl.isForward());
         assertTrue(fl.isBackward());
-        assertEquals(EdgeFlags.DEFAULT_SPEED, fl.getSpeedPart());
+        assertEquals(CarStreetType.DEFAULT_SPEED, fl.getSpeedPart());
     }
 
     @Test
     public void testService() {
         Map<String, Object> p = new HashMap<String, Object>();
-        p.put("car", EdgeFlags.CAR_SPEED.get("service"));
-        EdgeFlags fl = new EdgeFlags(EdgeFlags.create(p));
+        p.put("car", CarStreetType.SPEED.get("service"));
+        CarStreetType fl = new CarStreetType(new AcceptStreet(true, false, false, false).toFlags(p));
         assertTrue(fl.isForward());
         assertTrue(fl.isBackward());
         assertTrue(fl.isService());

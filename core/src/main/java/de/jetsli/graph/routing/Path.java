@@ -15,8 +15,11 @@
  */
 package de.jetsli.graph.routing;
 
-import de.jetsli.graph.reader.EdgeFlags;
+import de.jetsli.graph.routing.util.ShortestCalc;
+import de.jetsli.graph.routing.util.WeightCalculation;
+import de.jetsli.graph.storage.Graph;
 import de.jetsli.graph.util.EdgeIterator;
+import de.jetsli.graph.util.GraphUtility;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.set.TIntSet;
 import gnu.trove.set.hash.TIntHashSet;
@@ -28,16 +31,17 @@ import gnu.trove.set.hash.TIntHashSet;
  */
 public class Path {
 
-    private int timeInSec;
-    private double distance;
+    protected WeightCalculation weightCalculation;
+    protected double weight;
+    protected double distance;
     private TIntArrayList locations = new TIntArrayList();
 
-    public void setTimeInSec(int timeInSec) {
-        this.timeInSec = timeInSec;
+    public Path() {
+        this(ShortestCalc.DEFAULT);
     }
 
-    public int timeInSec() {
-        return timeInSec;
+    public Path(WeightCalculation weightCalculation) {
+        this.weightCalculation = weightCalculation;
     }
 
     public void add(int node) {
@@ -46,6 +50,10 @@ public class Path {
 
     public boolean contains(int node) {
         return locations.contains(node);
+    }
+
+    public int indexOf(int node) {
+        return locations.indexOf(node);
     }
 
     public void reverseOrder() {
@@ -68,11 +76,19 @@ public class Path {
         return distance;
     }
 
-    public void setDistance(double d) {
-        distance = d;
+    public double weight() {
+        return weight;
+    }
+
+    public void weight(double weight) {
+        this.weight = weight;
     }
 
     @Override public String toString() {
+        return "weight:" + weight() + ", locations:" + locations.size();
+    }
+
+    public String toDetailsString() {
         String str = "";
         for (int i = 0; i < locations.size(); i++) {
             if (i > 0)
@@ -80,7 +96,7 @@ public class Path {
 
             str += locations.get(i);
         }
-        return "distance:" + distance() + ", " + str;
+        return toString() + ", " + str;
     }
 
     public TIntSet and(Path p2) {
@@ -97,15 +113,49 @@ public class Path {
         return retSet;
     }
 
-    public void updateProperties(EdgeIterator iter, int to) {
+    public Path extract() {
+        return this;
+    }
+
+    public void calcWeight(EdgeIterator iter, int to) {
+        double lowestW = -1;
+        double dist = -1;
         while (iter.next()) {
             if (iter.node() == to) {
-                setDistance(distance() + iter.distance());
-                setTimeInSec((int) (timeInSec() + iter.distance() * 3600.0 / EdgeFlags.getSpeed(iter.flags())));
-                return;
+                double tmpW = weightCalculation.getWeight(iter);
+                if (lowestW < 0 || lowestW > tmpW) {
+                    lowestW = tmpW;
+                    dist = iter.distance();
+                }
             }
         }
-        throw new IllegalStateException("couldn't extract path. distance for " + iter.node()
-                + " to " + to + " not found!?");
+
+        if (lowestW < 0)
+            throw new IllegalStateException("couldn't extract path. distance for " + iter.node()
+                    + " to " + to + " not found!?");
+
+        weight += lowestW;
+        distance += dist;
+    }
+
+    public static void debugDifference(Graph g, Path p1, Path p2) {
+        int l = p1.locations() - 1;
+        for (int i = 0; i < l; i++) {
+            int from = p1.location(i);
+            int to = p1.location(i + 1);
+            Path tmp = new DijkstraSimple(g).calcPath(from, to);
+
+            double dist = 0;
+            int p2From = p2.indexOf(from);
+            int p2To = p2.indexOf(to);
+            for (int j = p2From; j < p2To; j++) {
+                EdgeIterator iter = GraphUtility.until(g.getOutgoing(p2.location(j)), p2.location(j + 1));
+                dist += iter.distance();
+            }
+
+            if (Math.abs(dist - tmp.weight()) > 0.01) {
+                System.out.println("p.dist:" + tmp.weight() + ", dist:" + dist + ", " + from + "->" + to);
+            }
+        }
     }
 }

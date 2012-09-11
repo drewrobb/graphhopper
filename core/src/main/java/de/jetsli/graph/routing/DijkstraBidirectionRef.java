@@ -17,10 +17,11 @@ package de.jetsli.graph.routing;
 
 import de.jetsli.graph.coll.MyBitSet;
 import de.jetsli.graph.coll.MyOpenBitSet;
+import de.jetsli.graph.routing.util.EdgePrioFilter;
 import de.jetsli.graph.storage.EdgeEntry;
-import de.jetsli.graph.storage.EdgePrioFilter;
 import de.jetsli.graph.storage.Graph;
 import de.jetsli.graph.util.EdgeIterator;
+import de.jetsli.graph.util.GraphUtility;
 import gnu.trove.map.TIntObjectMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import java.util.PriorityQueue;
@@ -45,7 +46,7 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
     protected EdgeEntry currFrom;
     protected EdgeEntry currTo;
     protected TIntObjectMap<EdgeEntry> shortestWeightMapOther;
-    public PathWrapperRef shortest;
+    public PathBidirRef shortest;
     private EdgePrioFilter edgeFilter;
 
     public DijkstraBidirectionRef(Graph graph) {
@@ -67,6 +68,10 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
         return this;
     }
 
+    public EdgePrioFilter getEdgeFilter() {
+        return edgeFilter;
+    }
+
     @Override
     public RoutingAlgorithm clear() {
         alreadyRun = false;
@@ -77,9 +82,6 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
         visitedTo.clear();
         openSetTo.clear();
         shortestWeightMapTo.clear();
-
-        shortest = createPathWrapper();
-        shortest.weight = Double.MAX_VALUE;
         return this;
     }
 
@@ -92,6 +94,7 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
         this.from = from;
         currFrom = new EdgeEntry(from, 0);
         shortestWeightMapFrom.put(from, currFrom);
+        visitedFrom.add(from);
         return this;
     }
 
@@ -99,14 +102,16 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
         this.to = to;
         currTo = new EdgeEntry(to, 0);
         shortestWeightMapTo.put(to, currTo);
+        visitedTo.add(to);
         return this;
     }
 
     @Override public Path calcPath(int from, int to) {
         if (alreadyRun)
-            throw new IllegalStateException("Do not reuse DijkstraBidirection");
+            throw new IllegalStateException("Call clear before! But this class is not thread safe!");
 
         alreadyRun = true;
+        initPath();
         initFrom(from);
         initTo(to);
 
@@ -149,12 +154,7 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
             TIntObjectMap<EdgeEntry> shortestWeightMap, boolean out) {
 
         int currNodeFrom = curr.node;
-        EdgeIterator iter;
-        if (out)
-            iter = graph.getOutgoing(currNodeFrom);
-        else
-            iter = graph.getIncoming(currNodeFrom);
-
+        EdgeIterator iter = GraphUtility.getEdges(graph, currNodeFrom, out);
         if (edgeFilter != null)
             iter = edgeFilter.doFilter(iter);
 
@@ -163,13 +163,14 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
             if (visitedMain.contains(neighborNode))
                 continue;
 
-            double tmpWeight = getWeight(iter) + curr.weight;
+            double tmpWeight = weightCalc.getWeight(iter) + curr.weight;
             EdgeEntry de = shortestWeightMap.get(neighborNode);
             if (de == null) {
                 de = new EdgeEntry(neighborNode, tmpWeight);
                 de.prevEntry = curr;
                 shortestWeightMap.put(neighborNode, de);
                 prioQueue.add(de);
+//                System.out.println((out ? 1 : 0) + " NEW    " + de);
             } else if (de.weight > tmpWeight) {
                 // use fibonacci? see http://stackoverflow.com/q/6273833/194609
                 // in fibonacci heaps there is decreaseKey but it has a lot more overhead per entry
@@ -233,7 +234,7 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
 
     private Path checkIndenticalFromAndTo() {
         if (from == to) {
-            Path p = new Path();
+            Path p = new Path(weightCalc);
             p.add(from);
             return p;
         }
@@ -248,7 +249,13 @@ public class DijkstraBidirectionRef extends AbstractRoutingAlgorithm {
         return shortestWeightMapTo.get(nodeId);
     }
 
-    protected PathWrapperRef createPathWrapper() {
-        return new PathWrapperRef(graph);
+    protected PathBidirRef createPath() {
+        return new PathBidirRef(graph, weightCalc);
+    }
+
+    public DijkstraBidirectionRef initPath() {
+        shortest = createPath();
+        shortest.weight(Double.MAX_VALUE);
+        return this;
     }
 }

@@ -85,13 +85,13 @@ public class DijkstraTwoDrivers {
             @Override public DijkstraBidirectionRef getOtherDriver() {
                 return driverB;
             }
-        }.initFrom(fromA).initTo(toA);
+        }.initFrom(fromA).initTo(toA).initPath();
 
         driverB = new DijkstraBidirectionCombined(graph) {
             @Override public DijkstraBidirectionRef getOtherDriver() {
                 return driverA;
             }
-        }.initFrom(fromB).initTo(toB);
+        }.initFrom(fromB).initTo(toB).initPath();
 
         while (true) {
             driverA.fillEdgesFrom();
@@ -126,11 +126,11 @@ public class DijkstraTwoDrivers {
 
         @Override public boolean checkFinishCondition() {
             if (currFrom == null)
-                return currTo.weight >= shortest.weight;
+                return currTo.weight >= shortest.weight();
             else if (currTo == null)
-                return currFrom.weight >= shortest.weight;
+                return currFrom.weight >= shortest.weight();
 
-            return Math.min(currFrom.weight, currTo.weight) >= shortest.weight;
+            return Math.min(currFrom.weight, currTo.weight) >= shortest.weight();
         }
 
         @Override public void updateShortest(EdgeEntry shortestDE, int currLoc) {
@@ -145,17 +145,17 @@ public class DijkstraTwoDrivers {
             double shortestCurrent = shortestDE.weight + entryOther.weight;
             double newShortest = shortestCurrent + shortestOther;
             if (newShortest < overallDistance) {
-                // TODO: minimize not only the sum but also the difference => multi modal search!
+                // LATER: minimize not only the sum but also the difference => multi modal search!
                 overallDistance = newShortest;
                 meetingPoint = currLoc;
 
                 getOtherDriver().shortest.edgeFrom = fromOther;
                 getOtherDriver().shortest.edgeTo = toOther;
-                getOtherDriver().shortest.weight = shortestOther;
+                getOtherDriver().shortest.weight(shortestOther);
 
                 shortest.edgeFrom = shortestDE;
                 shortest.edgeTo = entryOther;
-                shortest.weight = shortestCurrent;
+                shortest.weight(shortestCurrent);
             }
         }
     }

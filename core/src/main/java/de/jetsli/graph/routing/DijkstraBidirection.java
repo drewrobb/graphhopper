@@ -43,7 +43,7 @@ public class DijkstraBidirection extends AbstractRoutingAlgorithm {
     protected int currTo;
     protected double currToWeight;
     protected int currToEdgeId;
-    protected PathWrapper shortest;
+    protected PathBidir shortest;
     protected EdgeWrapper wrapperOther;
     private MyBitSet visitedFrom;
     private IntBinHeap openSetFrom;
@@ -63,12 +63,10 @@ public class DijkstraBidirection extends AbstractRoutingAlgorithm {
         visitedTo = new MyOpenBitSet(locs);
         openSetTo = new IntBinHeap(locs / 10);
         wrapperTo = new EdgeWrapper(locs / 10);
-
-        clear();
     }
 
     @Override
-    public RoutingAlgorithm clear() {
+    public RoutingAlgorithm clear() {        
         alreadyRun = false;
         visitedFrom.clear();
         openSetFrom.clear();
@@ -77,9 +75,6 @@ public class DijkstraBidirection extends AbstractRoutingAlgorithm {
         visitedTo.clear();
         openSetTo.clear();
         wrapperTo.clear();
-
-        shortest = new PathWrapper(graph, wrapperFrom, wrapperTo);
-        shortest.weight = Double.MAX_VALUE;
         return this;
     }
 
@@ -106,9 +101,10 @@ public class DijkstraBidirection extends AbstractRoutingAlgorithm {
 
     @Override public Path calcPath(int from, int to) {
         if (alreadyRun)
-            throw new IllegalStateException("Do not reuse DijkstraBidirection");
-
+            throw new IllegalStateException("Call clear before! But this class is not thread safe!");
+        
         alreadyRun = true;
+        initPath();
         initFrom(from);
         initTo(to);
 
@@ -129,6 +125,11 @@ public class DijkstraBidirection extends AbstractRoutingAlgorithm {
         }
 
         return getShortest();
+    }
+    
+    public void initPath() {
+        shortest = new PathBidir(graph, wrapperFrom, wrapperTo, weightCalc);
+        shortest.weight = Double.MAX_VALUE;
     }
 
     public Path getShortest() {
@@ -152,7 +153,7 @@ public class DijkstraBidirection extends AbstractRoutingAlgorithm {
             if (visitedMain.contains(neighborNode))
                 continue;
 
-            double tmpWeight = getWeight(iter) + currWeight;
+            double tmpWeight = weightCalc.getWeight(iter) + currWeight;
             int newEdgeId = wrapper.getEdgeId(neighborNode);
             if (newEdgeId <= 0) {
                 newEdgeId = wrapper.add(neighborNode, tmpWeight);
@@ -221,7 +222,7 @@ public class DijkstraBidirection extends AbstractRoutingAlgorithm {
 
     private Path checkIndenticalFromAndTo() {
         if (from == to) {
-            Path p = new Path();
+            Path p = new Path(weightCalc);
             p.add(from);
             return p;
         }

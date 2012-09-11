@@ -13,12 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package de.jetsli.graph.routing;
+package de.jetsli.graph.routing.util;
+
+import de.jetsli.graph.util.EdgeIterator;
 
 /**
+ * Specifies how the best route is calculated. E.g. the fastest or shortest route.
+ *
  * @author Peter Karich
  */
-public enum AlgoType {
+public interface WeightCalculation {
 
-    FASTEST, SHORTEST
+    double getWeight(EdgeIterator iter);
+
+    double apply(double currDistToGoal);
+
+    double apply(double currDistToGoal, int flags);
 }

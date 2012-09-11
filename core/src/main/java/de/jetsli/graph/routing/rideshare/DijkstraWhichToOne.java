@@ -15,15 +15,14 @@
  */
 package de.jetsli.graph.routing.rideshare;
 
-import de.jetsli.graph.storage.Edge;
 import de.jetsli.graph.coll.MyBitSet;
 import de.jetsli.graph.coll.MyOpenBitSet;
 import de.jetsli.graph.routing.AbstractRoutingAlgorithm;
 import de.jetsli.graph.routing.Path;
-import de.jetsli.graph.routing.PathWrapperRef;
+import de.jetsli.graph.routing.PathBidirRef;
 import de.jetsli.graph.routing.RoutingAlgorithm;
-import de.jetsli.graph.storage.Graph;
 import de.jetsli.graph.storage.EdgeEntry;
+import de.jetsli.graph.storage.Graph;
 import de.jetsli.graph.util.EdgeIterator;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.TIntObjectMap;
@@ -40,7 +39,7 @@ import java.util.PriorityQueue;
  */
 public class DijkstraWhichToOne extends AbstractRoutingAlgorithm {
 
-    private PathWrapperRef shortest;
+    private PathBidirRef shortest;
     private TIntObjectMap<EdgeEntry> shortestDistMapOther;
     private TIntObjectMap<EdgeEntry> shortestDistMapFrom;
     private TIntObjectMap<EdgeEntry> shortestDistMapTo;
@@ -72,7 +71,7 @@ public class DijkstraWhichToOne extends AbstractRoutingAlgorithm {
     public Path calcShortestPath() {
         // identical
         if (pubTransport.contains(destination)) {
-            Path p = new Path();
+            Path p = new Path(weightCalc);
             p.add(destination);
             return p;
         }
@@ -88,8 +87,8 @@ public class DijkstraWhichToOne extends AbstractRoutingAlgorithm {
         shortestDistMapTo = new TIntObjectHashMap<EdgeEntry>();
         shortestDistMapTo.put(destination, entryTo);
 
-        shortest = new PathWrapperRef(graph);
-        shortest.weight = Double.MAX_VALUE;
+        shortest = new PathBidirRef(graph, weightCalc);
+        shortest.weight(Double.MAX_VALUE);
 
         // create several starting points
         if (pubTransport.isEmpty())
@@ -106,7 +105,7 @@ public class DijkstraWhichToOne extends AbstractRoutingAlgorithm {
         }
 
         int finish = 0;
-        while (finish < 2 && currFrom.weight + currTo.weight < shortest.weight) {
+        while (finish < 2 && currFrom.weight + currTo.weight < shortest.weight()) {
             // http://www.cs.princeton.edu/courses/archive/spr06/cos423/Handouts/EPP%20shortest%20path%20algorithms.pdf
             // a node from overlap may not be on the shortest path!!
             // => when scanning an arc (v, w) in the forward search and w is scanned in the reverse 
@@ -130,20 +129,17 @@ public class DijkstraWhichToOne extends AbstractRoutingAlgorithm {
                 finish++;
         }
 
-        Path g = shortest.extract();
-        if (g == null)
+        Path p = shortest.extract();
+        if (p == null)
             return null;
 
-        if (!pubTransport.contains(g.getFromLoc())) {
-            double tmpDist = g.distance();
-            g.reverseOrder();
-            g.setDistance(tmpDist);
-        }
+        if (!pubTransport.contains(p.getFromLoc()))
+            p.reverseOrder();
 
-        return g;
+        return p;
     }
 
-    public void fillEdges(PathWrapperRef shortest, EdgeEntry curr, MyBitSet visitedMain,
+    public void fillEdges(PathBidirRef shortest, EdgeEntry curr, MyBitSet visitedMain,
             PriorityQueue<EdgeEntry> prioQueue,
             TIntObjectMap<EdgeEntry> shortestDistMap, boolean out) {
 
@@ -158,7 +154,7 @@ public class DijkstraWhichToOne extends AbstractRoutingAlgorithm {
             if (visitedMain.contains(tmpV))
                 continue;
 
-            double tmp = getWeight(iter) + curr.weight;
+            double tmp = weightCalc.getWeight(iter) + curr.weight;
             EdgeEntry de = shortestDistMap.get(tmpV);
             if (de == null) {
                 de = new EdgeEntry(tmpV, tmp);
@@ -184,11 +180,11 @@ public class DijkstraWhichToOne extends AbstractRoutingAlgorithm {
         if (entryOther != null) {
             // update μ
             double newShortest = de.weight + entryOther.weight;
-            if (newShortest < shortest.weight) {
+            if (newShortest < shortest.weight()) {
                 shortest.switchWrapper = shortestDistMapFrom == shortestDistMapOther;
                 shortest.edgeFrom = de;
                 shortest.edgeTo = entryOther;
-                shortest.weight = newShortest;
+                shortest.weight(newShortest);
             }
         }
     }

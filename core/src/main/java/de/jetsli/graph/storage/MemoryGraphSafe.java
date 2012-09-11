@@ -18,7 +18,7 @@ package de.jetsli.graph.storage;
 import de.jetsli.graph.coll.MyBitSet;
 import de.jetsli.graph.coll.MyBitSetImpl;
 import de.jetsli.graph.coll.MyOpenBitSet;
-import de.jetsli.graph.reader.EdgeFlags;
+import de.jetsli.graph.routing.util.CarStreetType;
 import de.jetsli.graph.util.EdgeIterator;
 import de.jetsli.graph.util.Helper;
 import gnu.trove.map.hash.TIntIntHashMap;
@@ -174,7 +174,7 @@ public class MemoryGraphSafe implements SaveableGraph {
 
     @Override
     public void edge(int a, int b, double distance, boolean bothDirections) {
-        edge(a, b, distance, EdgeFlags.create(bothDirections));
+        edge(a, b, distance, CarStreetType.flagsDefault(bothDirections));
     }
 
     @Override
@@ -225,6 +225,13 @@ public class MemoryGraphSafe implements SaveableGraph {
         writeEdge(newOrExistingEdgePointer, fromNodeId, toNodeId, EMPTY_LINK, EMPTY_LINK, flags, dist);
     }
 
+    protected int nextEdgePointer() {
+        edgeNextGlobalPointer += LEN_EDGE;
+        if (edgeNextGlobalPointer < 0)
+            throw new IllegalStateException("too many edges. new edge pointer would be negative.");
+        return edgeNextGlobalPointer;
+    }
+
     protected void connectNewEdge(int fromNodeId, int newOrExistingEdgePointer) {
         int edgePointer = refToEdges[fromNodeId];
         if (edgePointer > 0) {
@@ -250,7 +257,7 @@ public class MemoryGraphSafe implements SaveableGraph {
             nextEdgePointer = nextEdgeOtherPointer;
             nextEdgeOtherPointer = tmp;
 
-            flags = EdgeFlags.swapDirection(flags);
+            flags = CarStreetType.swapDirection(flags);
         }
 
         writeA(edgePointer, nodeThis);
@@ -293,11 +300,6 @@ public class MemoryGraphSafe implements SaveableGraph {
             int link = getLinkPosInEdgeArea(node, otherNode, edgeToUpdatePointer);
             saveToEdgeArea(link, nextEdge);
         }
-    }
-
-    protected int nextEdgePointer() {
-        edgeNextGlobalPointer += LEN_EDGE;
-        return edgeNextGlobalPointer;
     }
 
     private int getLastEdgePointer(int nodeThis, int edgePointer) {
@@ -371,9 +373,9 @@ public class MemoryGraphSafe implements SaveableGraph {
 
             // switch direction flags if necessary
             if (fromNode > nodeId)
-                flags = EdgeFlags.swapDirection(flags);
+                flags = CarStreetType.swapDirection(flags);
 
-            if (!in && !EdgeFlags.isForward(flags) || !out && !EdgeFlags.isBackward(flags)) {
+            if (!in && !CarStreetType.isForward(flags) || !out && !CarStreetType.isBackward(flags)) {
                 // skip this edge as it does not fit to defined filter
             } else {
                 distance = getDist(pointer);

@@ -15,6 +15,7 @@
  */
 package de.jetsli.graph.routing;
 
+import de.jetsli.graph.routing.util.WeightCalculation;
 import de.jetsli.graph.storage.EdgeEntry;
 import de.jetsli.graph.storage.Graph;
 
@@ -23,22 +24,24 @@ import de.jetsli.graph.storage.Graph;
  *
  * @author Peter Karich, info@jetsli.de
  */
-public class PathWrapperRef {
+public class PathBidirRef extends Path {
 
     public EdgeEntry edgeFrom;
     public EdgeEntry edgeTo;
-    public double weight;
     public boolean switchWrapper = false;
     protected Graph g;
 
-    public PathWrapperRef(Graph g) {
+    public PathBidirRef(Graph g, WeightCalculation weightCalculation) {
+        super(weightCalculation);
         this.g = g;
     }
 
     /**
      * Extracts path from two shortest-path-tree
      */
+    @Override
     public Path extract() {
+        weight = 0;
         if (edgeFrom == null || edgeTo == null)
             return null;
 
@@ -51,29 +54,27 @@ public class PathWrapperRef {
             edgeTo = ee;
         }
 
-        Path path = new Path();
         EdgeEntry currEdge = edgeFrom;
         while (currEdge.prevEntry != null) {
             int tmpFrom = currEdge.node;
-            path.add(tmpFrom);
+            add(tmpFrom);
             currEdge = currEdge.prevEntry;
-            path.updateProperties(g.getIncoming(tmpFrom), currEdge.node);
+            calcWeight(g.getOutgoing(currEdge.node), tmpFrom);
         }
-        path.add(currEdge.node);
-        path.reverseOrder();
-
+        add(currEdge.node);
+        reverseOrder();
         currEdge = edgeTo;
         while (currEdge.prevEntry != null) {
             int tmpTo = currEdge.node;
             currEdge = currEdge.prevEntry;
-            path.add(currEdge.node);
-            path.updateProperties(g.getOutgoing(tmpTo), currEdge.node);
+            add(currEdge.node);
+            calcWeight(g.getOutgoing(tmpTo), currEdge.node);
         }
 
-        return path;
+        return this;
     }
 
-    @Override public String toString() {
-        return "distance:" + weight + ", from:" + edgeFrom + ", to:" + edgeTo;
-    }
+//    @Override public String toString() {
+//        return "distance:" + weight + ", from:" + edgeFrom + ", to:" + edgeTo;
+//    }
 }
