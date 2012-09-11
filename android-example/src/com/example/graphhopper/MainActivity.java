@@ -1,71 +1,128 @@
 package com.example.graphhopper;
 
-import android.app.Activity;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.mapsforge.android.maps.MapActivity;
+import org.mapsforge.android.maps.MapView;
+import org.mapsforge.android.maps.overlay.ListOverlay;
+import org.mapsforge.android.maps.overlay.PolygonalChain;
+import org.mapsforge.android.maps.overlay.Polyline;
+import org.mapsforge.core.model.GeoPoint;
+import org.mapsforge.map.reader.header.FileOpenResult;
+
+import android.gesture.GestureOverlayView.OnGestureListener;
+import android.graphics.Color;
+import android.graphics.DashPathEffect;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
-import android.view.View;
-import android.view.View.OnClickListener;
-import android.widget.Button;
-import android.widget.EditText;
+import android.util.Log;
+import android.view.GestureDetector;
+import android.view.GestureDetector.SimpleOnGestureListener;
+import android.view.MotionEvent;
+import android.widget.Toast;
 import de.jetsli.graph.routing.DijkstraBidirection;
 import de.jetsli.graph.routing.Path;
 import de.jetsli.graph.storage.Graph;
-import de.jetsli.graph.storage.Location2IDFullIndex;
+import de.jetsli.graph.storage.Location2IDIndex;
+import de.jetsli.graph.storage.Location2IDQuadtree;
 import de.jetsli.graph.storage.MemoryGraphSafe;
 
-public class MainActivity extends Activity {
-	private Handler handler = new Handler();
+public class MainActivity extends MapActivity {
+	private static final GeoPoint BRANDENBURG_GATE = new GeoPoint(52.516273, 13.377725);
+	private static final GeoPoint VICTORY_COLUMN = new GeoPoint(52.514505, 13.350111);
+	private MapView mapView;
+	private Graph graph;
+	private Location2IDIndex locIndex;
+	private GeoPoint start;
+	private static final File MAP_FILE = new File(Environment
+			.getExternalStorageDirectory().getAbsolutePath()
+			+ "/graphhopper/maps/berlin.map");
+	ListOverlay pathOverlay = new ListOverlay();
+	SimpleOnGestureListener listener = new SimpleOnGestureListener() {
+
+		public boolean onSingleTapConfirmed(MotionEvent event) {
+			// TODO use the clicked points and not the center!
+			// event.getX(), event.getY()
+			GeoPoint tmp = mapView.getMapViewPosition().getMapPosition().geoPoint;
+			if (start != null) {
+				calcPath(start.latitude, start.longitude, tmp.latitude, tmp.longitude);
+				start = null;
+			} else {
+				log("start routing at " + tmp.latitude + "," + tmp.longitude);
+				start = tmp;
+			}
+			return true;
+		}
+	};
+	GestureDetector gestureDetector = new GestureDetector(listener);
 
 	@Override
-	public void onCreate(Bundle savedInstanceState) {
+	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
-
-		Button start = (Button) findViewById(R.id.button1);
-		start.setOnClickListener(new OnClickListener() {
+		graph = createGraph();
+		locIndex = new Location2IDQuadtree(graph).prepareIndex(2000);
+		mapView = new MapView(this) {
 
 			@Override
-			public void onClick(View v) {
-				new Thread() {
-					@Override
-					public void run() {
-						setMyText("start", R.id.editText1);
-						try {
-							Graph g = createGraph();
-							setMyText("created graph " + g.getNodes(), R.id.editText1);
-							Location2IDFullIndex locIndex = new Location2IDFullIndex(g);
-							int fromId = locIndex.findID(43.727687, 7.418737);
-							int toId = locIndex.findID(43.74958, 7.436566);
-							setMyText("found ids:" + fromId + "," + toId, R.id.editText1);
-							fromId = 1;
-							toId = 12;
-							Path p = new DijkstraBidirection(g).calcPath(fromId, toId);
-							setMyText("found path:" + p.distance() + ", locations:"
-									+ p.locations(), R.id.editText1);
-						} catch (Exception ex) {
-							throw new RuntimeException(ex);
-						}
-					}
-				}.start();
+			public boolean onTouchEvent(MotionEvent event) {
+				if (gestureDetector.onTouchEvent(event))
+					return true;
+				return super.onTouchEvent(event);
 			}
-		});
+		};
+		mapView.setClickable(true);
+		mapView.setBuiltInZoomControls(true);
+		FileOpenResult fileOpenResult = mapView.setMapFile(MAP_FILE);
+		if (!fileOpenResult.isSuccess()) {
+			Toast.makeText(this, fileOpenResult.getErrorMessage(), Toast.LENGTH_LONG)
+					.show();
+			finish();
+		}
+		setContentView(mapView);
+		
+		mapView.getOverlays().add(pathOverlay);
 	}
 
-	public void setMyText(final String text, int editTextId) {
-		final EditText et = (EditText) findViewById(editTextId);
-		handler.post(new Runnable() {
+	private Polyline createPolyline(Path p) {
+		int locs = p.locations();
+		List<GeoPoint> geoPoints = new ArrayList<GeoPoint>(locs);
+		for (int i = 0; i < locs; i++) {
+			geoPoints.add(new GeoPoint(graph.getLatitude(p.location(i)), graph.getLongitude(p.location(i))));
+		}
+		PolygonalChain polygonalChain = new PolygonalChain(geoPoints);
+		Paint paintStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+		paintStroke.setStyle(Paint.Style.STROKE);
+		paintStroke.setColor(Color.BLUE);
+		paintStroke.setAlpha(128);
+		paintStroke.setStrokeWidth(8);
+		paintStroke.setPathEffect(new DashPathEffect(new float[] { 25, 15 }, 0));
 
-			@Override
-			public void run() {
-				et.setText(et.getText() + "\n" + text);
-			}
-		});
+		return new Polyline(polygonalChain, paintStroke);
+	}
+
+	public void calcPath(double fromLat, double fromLon, double toLat, double toLon) {
+		int fromId = locIndex.findID(fromLat, fromLon);
+		int toId = locIndex.findID(toLat, toLon);
+		log("found ids:" + fromId + "->" + toId + " via coords:" + fromLat + ","
+				+ fromLon + "->" + toLat + "," + toLon);
+		Path p = new DijkstraBidirection(graph).calcPath(fromId, toId);
+		log("found path:" + p.distance() + ", " + p.locations());		
+
+		pathOverlay.getOverlayItems().clear();
+		pathOverlay.getOverlayItems().add(createPolyline(p));
+		mapView.redraw();
+	}
+
+	private void log(String str) {
+		Log.i("GH", str);
 	}
 
 	private Graph createGraph() {
 		return new MemoryGraphSafe(Environment.getExternalStorageDirectory()
 				.getAbsolutePath()
-				+ "/andnav/maps/graph-monaco", 10);
+				+ "/graphhopper/maps/graph-berlin.osm", 10);
 	}
 }
