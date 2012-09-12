@@ -18,6 +18,7 @@ import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -57,13 +58,27 @@ public class MainActivity extends MapActivity {
 			float x = motionEvent.getX();
 			float y = motionEvent.getY();
 			Projection p = mapView.getProjection();
-			GeoPoint tmp = p.fromPixels((int) x, (int) y);
+			GeoPoint tmpPoint = p.fromPixels((int) x, (int) y);
 
 			if (start != null) {
-				calcPath(start.latitude, start.longitude, tmp.latitude, tmp.longitude);
+				Marker marker = createMarker(tmpPoint, R.drawable.flag_red);
+				if (marker != null) {
+					pathOverlay.getOverlayItems().add(marker);
+					mapView.redraw();
+				}
+				Toast.makeText(MainActivity.this, "calculating ...", Toast.LENGTH_SHORT)
+						.show();
+				calcPath(start.latitude, start.longitude, tmpPoint.latitude,
+						tmpPoint.longitude);
 				start = null;
 			} else {
-				start = tmp;
+				start = tmpPoint;
+				pathOverlay.getOverlayItems().clear();
+				Marker marker = createMarker(start, R.drawable.flag_green);
+				if (marker != null) {
+					pathOverlay.getOverlayItems().add(marker);
+					mapView.redraw();
+				}
 			}
 			return true;
 		}
@@ -97,14 +112,28 @@ public class MainActivity extends MapActivity {
 	}
 
 	Graph getGraph() {
-		if (graph == null)
-			graph = new MMapGraph(GRAPH_FOLDER, 10);
+		if (graph == null) {
+			log("loading graph");
+
+			// not thread safe but graph is only partially loaded into RAM
+			MMapGraph g = new MMapGraph(GRAPH_FOLDER, 10);
+			g.loadExisting();
+			graph = g;
+
+			// fast and read-thread safe but requires the entire graph in RAM
+			// which fails for large areas (but e.g. the city Berlin is ok)
+			// graph = new MemoryGraphSafe(GRAPH_FOLDER);
+			log("found graph with " + g.getNodes() + " nodes");
+		}
 		return graph;
 	}
 
 	Location2IDIndex getLocIndex() {
-		if (locIndex == null)
-			locIndex = new Location2IDQuadtree(getGraph()).prepareIndex(2000);
+		if (locIndex == null) {
+			Graph g = getGraph();
+			log("creating index for graph");
+			locIndex = new Location2IDQuadtree(g).prepareIndex(1000);
+		}
 		return locIndex;
 	}
 
@@ -130,45 +159,41 @@ public class MainActivity extends MapActivity {
 		return new GeoPoint(getGraph().getLatitude(index), getGraph().getLongitude(index));
 	}
 
-	private Marker createStartMarker(Path p) {
-		if (p.locations() == 0)
-			return null;
-
-		Drawable drawable = getResources().getDrawable(R.drawable.flag_red);
-		return new Marker(toGeoPoint(p, p.locations() - 1), Marker
-				.boundCenterBottom(drawable));
+	private Marker createMarker(GeoPoint p, int resource) {
+		Drawable drawable = getResources().getDrawable(resource);
+		return new Marker(p, Marker.boundCenterBottom(drawable));
 	}
 
-	private Marker createEndMarker(Path p) {
-		if (p.locations() == 0)
-			return null;
+	public void calcPath(final double fromLat, final double fromLon, final double toLat,
+			final double toLon) {
+		new AsyncTask<Void, Void, Path>() {
+			float locFindTime;
+			float time;
 
-		Drawable drawable = getResources().getDrawable(R.drawable.flag_green);
-		return new Marker(toGeoPoint(p, 0), Marker.boundCenterBottom(drawable));
-	}
+			protected Path doInBackground(Void... v) {
+				StopWatch sw = new StopWatch().start();
+				log("query graph");
+				int fromId = getLocIndex().findID(fromLat, fromLon);
+				int toId = getLocIndex().findID(toLat, toLon);
+				locFindTime = sw.stop().getSeconds();
+				sw = new StopWatch().start();
+				log("calculate route");
+				Path p = new AStar(getGraph()).setType(FastestCalc.DEFAULT).calcPath(
+						fromId, toId);
+				time = sw.stop().getSeconds();
+				return p;
+			}
 
-	public void calcPath(double fromLat, double fromLon, double toLat, double toLon) {
-		StopWatch sw = new StopWatch().start();
-		int fromId = getLocIndex().findID(fromLat, fromLon);
-		int toId = getLocIndex().findID(toLat, toLon);
-		float locFind = sw.stop().getSeconds();
-		sw = new StopWatch().start();
-		Path p = new AStar(getGraph()).setType(FastestCalc.DEFAULT)
-				.calcPath(fromId, toId);
+			protected void onPostExecute(Path p) {
+				log("found path from:" + fromLat + "," + fromLon + " to " + toLat + ","
+						+ toLon + " with distance:" + p.distance() + ", locations:"
+						+ p.locations() + ", time:" + time + ", locFindTime:"
+						+ locFindTime);
 
-		log("found path! coords:" + fromLat + "," + fromLon + "->" + toLat + "," + toLon
-				+ " distance:" + p.distance() + ", " + p.locations() + " time:"
-				+ sw.stop().getSeconds() + " locFindTime:" + locFind);
-
-		pathOverlay.getOverlayItems().clear();
-		pathOverlay.getOverlayItems().add(createPolyline(p));
-		Marker start = createStartMarker(p);
-		if (start != null)
-			pathOverlay.getOverlayItems().add(start);
-		Marker m = createEndMarker(p);
-		if (m != null)
-			pathOverlay.getOverlayItems().add(m);
-		mapView.redraw();
+				pathOverlay.getOverlayItems().add(createPolyline(p));
+				mapView.redraw();
+			}
+		}.execute();
 	}
 
 	private void log(String str) {

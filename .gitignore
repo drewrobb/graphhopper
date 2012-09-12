@@ -13,4 +13,4 @@ android-example/gen/
 android-example/bin/
 android-example/*.map
 android-example/*.osm
-android-example/graph-berlin.osm/
+android-example/graph-*/
