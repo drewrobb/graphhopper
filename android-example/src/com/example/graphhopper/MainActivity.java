@@ -32,6 +32,7 @@ import de.jetsli.graph.routing.util.FastestCalc;
 import de.jetsli.graph.storage.Graph;
 import de.jetsli.graph.storage.Location2IDIndex;
 import de.jetsli.graph.storage.Location2IDQuadtree;
+import de.jetsli.graph.storage.MMapGraph;
 import de.jetsli.graph.storage.MemoryGraphSafe;
 import de.jetsli.graph.util.StopWatch;
 
@@ -41,17 +42,20 @@ public class MainActivity extends MapActivity {
 	private Graph graph;
 	private Location2IDIndex locIndex;
 	private GeoPoint start;
-	private static final File MAP_FILE = new File(Environment
-			.getExternalStorageDirectory().getAbsolutePath()
-			+ "/graphhopper/maps/berlin.map");
+	// private static String area = "berlin";
+	private static String area = "oberfranken";
+	private static final String GRAPH_FOLDER = Environment.getExternalStorageDirectory()
+			.getAbsolutePath()
+			+ "/graphhopper/maps/graph-" + area + ".osm/";
+	private static final String MAP_FILE = Environment.getExternalStorageDirectory()
+			.getAbsolutePath()
+			+ "/graphhopper/maps/" + area + ".map";
 	ListOverlay pathOverlay = new ListOverlay();
 	SimpleOnGestureListener listener = new SimpleOnGestureListener() {
 
 		public boolean onSingleTapConfirmed(MotionEvent motionEvent) {
 			float x = motionEvent.getX();
 			float y = motionEvent.getY();
-			// byte zoomLevel = mapView.getMapViewPosition().getZoomLevel();
-
 			Projection p = mapView.getProjection();
 			GeoPoint tmp = p.fromPixels((int) x, (int) y);
 
@@ -70,9 +74,6 @@ public class MainActivity extends MapActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		super.onCreate(savedInstanceState);
-
-		graph = createGraph();
-		locIndex = new Location2IDQuadtree(graph).prepareIndex(2000);
 		mapView = new MapView(this) {
 
 			@Override
@@ -84,7 +85,7 @@ public class MainActivity extends MapActivity {
 		};
 		mapView.setClickable(true);
 		mapView.setBuiltInZoomControls(true);
-		FileOpenResult fileOpenResult = mapView.setMapFile(MAP_FILE);
+		FileOpenResult fileOpenResult = mapView.setMapFile(new File(MAP_FILE));
 		if (!fileOpenResult.isSuccess()) {
 			Toast.makeText(this, fileOpenResult.getErrorMessage(), Toast.LENGTH_LONG)
 					.show();
@@ -93,6 +94,18 @@ public class MainActivity extends MapActivity {
 		setContentView(mapView);
 
 		mapView.getOverlays().add(pathOverlay);
+	}
+
+	Graph getGraph() {
+		if (graph == null)
+			graph = new MMapGraph(GRAPH_FOLDER, 10);
+		return graph;
+	}
+
+	Location2IDIndex getLocIndex() {
+		if (locIndex == null)
+			locIndex = new Location2IDQuadtree(getGraph()).prepareIndex(2000);
+		return locIndex;
 	}
 
 	private Polyline createPolyline(Path p) {
@@ -114,7 +127,7 @@ public class MainActivity extends MapActivity {
 
 	private GeoPoint toGeoPoint(Path p, int i) {
 		int index = p.location(i);
-		return new GeoPoint(graph.getLatitude(index), graph.getLongitude(index));
+		return new GeoPoint(getGraph().getLatitude(index), getGraph().getLongitude(index));
 	}
 
 	private Marker createStartMarker(Path p) {
@@ -136,11 +149,12 @@ public class MainActivity extends MapActivity {
 
 	public void calcPath(double fromLat, double fromLon, double toLat, double toLon) {
 		StopWatch sw = new StopWatch().start();
-		int fromId = locIndex.findID(fromLat, fromLon);
-		int toId = locIndex.findID(toLat, toLon);
+		int fromId = getLocIndex().findID(fromLat, fromLon);
+		int toId = getLocIndex().findID(toLat, toLon);
 		float locFind = sw.stop().getSeconds();
 		sw = new StopWatch().start();
-		Path p = new AStar(graph).setType(FastestCalc.DEFAULT).calcPath(fromId, toId);
+		Path p = new AStar(getGraph()).setType(FastestCalc.DEFAULT)
+				.calcPath(fromId, toId);
 
 		log("found path! coords:" + fromLat + "," + fromLon + "->" + toLat + "," + toLon
 				+ " distance:" + p.distance() + ", " + p.locations() + " time:"
@@ -159,11 +173,5 @@ public class MainActivity extends MapActivity {
 
 	private void log(String str) {
 		Log.i("GH", str);
-	}
-
-	private Graph createGraph() {
-		return new MemoryGraphSafe(Environment.getExternalStorageDirectory()
-				.getAbsolutePath()
-				+ "/graphhopper/maps/graph-berlin.osm", 10);
 	}
 }
