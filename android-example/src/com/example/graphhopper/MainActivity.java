@@ -14,7 +14,6 @@ import org.mapsforge.android.maps.overlay.Polyline;
 import org.mapsforge.core.model.GeoPoint;
 import org.mapsforge.map.reader.header.FileOpenResult;
 
-import android.R;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
