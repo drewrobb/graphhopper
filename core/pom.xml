@@ -37,21 +37,23 @@
             <version>${slf4j.version}</version>
         </dependency> 
         
-        <!-- this works under android but produces a warning
+        <!-- this works under android but produces a warning -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>${slf4j.version}</version>
             <scope>runtime</scope>
         </dependency>
-        -->
-        
+
+	<!-- hmmh and this does not compile on the desktop -->        
+	<!--
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-android</artifactId>
             <version>1.6.1-RC1</version>
             <scope>runtime</scope>
         </dependency>
+        -->
 
         <dependency>
             <groupId>junit</groupId>
