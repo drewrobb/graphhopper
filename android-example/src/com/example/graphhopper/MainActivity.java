@@ -31,6 +31,7 @@ import de.jetsli.graph.storage.Graph;
 import de.jetsli.graph.storage.Location2IDIndex;
 import de.jetsli.graph.storage.Location2IDQuadtree;
 import de.jetsli.graph.storage.MemoryGraphSafe;
+import de.jetsli.graph.util.StopWatch;
 
 public class MainActivity extends MapActivity {
 
@@ -112,12 +113,16 @@ public class MainActivity extends MapActivity {
 	}
 
 	public void calcPath(double fromLat, double fromLon, double toLat, double toLon) {
+		StopWatch sw = new StopWatch().start();
 		int fromId = locIndex.findID(fromLat, fromLon);
 		int toId = locIndex.findID(toLat, toLon);
-		log("found ids:" + fromId + "->" + toId + " via coords:" + fromLat + ","
-				+ fromLon + "->" + toLat + "," + toLon);
+		float locFind = sw.stop().getSeconds();
+		sw = new StopWatch().start();
 		Path p = new AStar(graph).setType(FastestCalc.DEFAULT).calcPath(fromId, toId);
-		log("found path:" + p.distance() + ", " + p.locations());
+
+		log("found path! coords:" + fromLat + "," + fromLon + "->" + toLat + "," + toLon
+				+ " distance:" + p.distance() + ", " + p.locations() + " time:"
+				+ sw.stop().getSeconds() + " locFindTime:" + locFind);
 
 		pathOverlay.getOverlayItems().clear();
 		pathOverlay.getOverlayItems().add(createPolyline(p));
