@@ -9,16 +9,11 @@ import org.mapsforge.android.maps.MapView;
 import org.mapsforge.android.maps.Projection;
 import org.mapsforge.android.maps.overlay.ListOverlay;
 import org.mapsforge.android.maps.overlay.Marker;
-import org.mapsforge.android.maps.overlay.Overlay;
-import org.mapsforge.android.maps.overlay.OverlayItem;
 import org.mapsforge.android.maps.overlay.PolygonalChain;
 import org.mapsforge.android.maps.overlay.Polyline;
-import org.mapsforge.core.model.BoundingBox;
 import org.mapsforge.core.model.GeoPoint;
-import org.mapsforge.core.model.Point;
 import org.mapsforge.map.reader.header.FileOpenResult;
 
-import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
