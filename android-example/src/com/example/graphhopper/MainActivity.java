@@ -8,14 +8,21 @@ import org.mapsforge.android.maps.MapActivity;
 import org.mapsforge.android.maps.MapView;
 import org.mapsforge.android.maps.Projection;
 import org.mapsforge.android.maps.overlay.ListOverlay;
+import org.mapsforge.android.maps.overlay.Marker;
+import org.mapsforge.android.maps.overlay.Overlay;
+import org.mapsforge.android.maps.overlay.OverlayItem;
 import org.mapsforge.android.maps.overlay.PolygonalChain;
 import org.mapsforge.android.maps.overlay.Polyline;
+import org.mapsforge.core.model.BoundingBox;
 import org.mapsforge.core.model.GeoPoint;
+import org.mapsforge.core.model.Point;
 import org.mapsforge.map.reader.header.FileOpenResult;
 
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -57,7 +64,6 @@ public class MainActivity extends MapActivity {
 				calcPath(start.latitude, start.longitude, tmp.latitude, tmp.longitude);
 				start = null;
 			} else {
-				log("start routing at " + tmp.latitude + "," + tmp.longitude);
 				start = tmp;
 			}
 			return true;
@@ -98,8 +104,7 @@ public class MainActivity extends MapActivity {
 		int locs = p.locations();
 		List<GeoPoint> geoPoints = new ArrayList<GeoPoint>(locs);
 		for (int i = 0; i < locs; i++) {
-			geoPoints.add(new GeoPoint(graph.getLatitude(p.location(i)), graph
-					.getLongitude(p.location(i))));
+			geoPoints.add(toGeoPoint(p, i));
 		}
 		PolygonalChain polygonalChain = new PolygonalChain(geoPoints);
 		Paint paintStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -110,6 +115,28 @@ public class MainActivity extends MapActivity {
 		paintStroke.setPathEffect(new DashPathEffect(new float[] { 25, 15 }, 0));
 
 		return new Polyline(polygonalChain, paintStroke);
+	}
+
+	private GeoPoint toGeoPoint(Path p, int i) {
+		int index = p.location(i);
+		return new GeoPoint(graph.getLatitude(index), graph.getLongitude(index));
+	}
+
+	private Marker createStartMarker(Path p) {
+		if (p.locations() == 0)
+			return null;
+
+		Drawable drawable = getResources().getDrawable(R.drawable.flag_red);
+		return new Marker(toGeoPoint(p, p.locations() - 1), Marker
+				.boundCenterBottom(drawable));
+	}
+
+	private Marker createEndMarker(Path p) {
+		if (p.locations() == 0)
+			return null;
+
+		Drawable drawable = getResources().getDrawable(R.drawable.flag_green);
+		return new Marker(toGeoPoint(p, 0), Marker.boundCenterBottom(drawable));
 	}
 
 	public void calcPath(double fromLat, double fromLon, double toLat, double toLon) {
@@ -126,6 +153,12 @@ public class MainActivity extends MapActivity {
 
 		pathOverlay.getOverlayItems().clear();
 		pathOverlay.getOverlayItems().add(createPolyline(p));
+		Marker start = createStartMarker(p);
+		if (start != null)
+			pathOverlay.getOverlayItems().add(start);
+		Marker m = createEndMarker(p);
+		if (m != null)
+			pathOverlay.getOverlayItems().add(m);
 		mapView.redraw();
 	}
 
