@@ -66,8 +66,7 @@ public class MainActivity extends MapActivity {
 					pathOverlay.getOverlayItems().add(marker);
 					mapView.redraw();
 				}
-				Toast.makeText(MainActivity.this, "calculating ...", Toast.LENGTH_SHORT)
-						.show();
+				logUser("calculating ...");
 				calcPath(start.latitude, start.longitude, tmpPoint.latitude,
 						tmpPoint.longitude);
 				start = null;
@@ -102,8 +101,7 @@ public class MainActivity extends MapActivity {
 		mapView.setBuiltInZoomControls(true);
 		FileOpenResult fileOpenResult = mapView.setMapFile(new File(MAP_FILE));
 		if (!fileOpenResult.isSuccess()) {
-			Toast.makeText(this, fileOpenResult.getErrorMessage(), Toast.LENGTH_LONG)
-					.show();
+			logUserLong(fileOpenResult.getErrorMessage());
 			finish();
 		}
 		setContentView(mapView);
@@ -189,6 +187,7 @@ public class MainActivity extends MapActivity {
 						+ toLon + " with distance:" + p.distance() + ", locations:"
 						+ p.locations() + ", time:" + time + ", locFindTime:"
 						+ locFindTime);
+				logUser("the route is " + p.distance() + "km long");
 
 				pathOverlay.getOverlayItems().add(createPolyline(p));
 				mapView.redraw();
@@ -198,5 +197,13 @@ public class MainActivity extends MapActivity {
 
 	private void log(String str) {
 		Log.i("GH", str);
+	}
+
+	private void logUser(String str) {
+		Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
+	}
+
+	private void logUserLong(String str) {
+		Toast.makeText(this, str, Toast.LENGTH_LONG).show();
 	}
 }
