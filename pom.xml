@@ -35,26 +35,20 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
-        </dependency> 
-        
-        <!-- this works under android but produces a warning -->
+        </dependency>   
         <dependency>
             <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
+            <artifactId>slf4j-log4j12</artifactId>
             <version>${slf4j.version}</version>
             <scope>runtime</scope>
         </dependency>
-
-	<!-- hmmh and this does not compile on the desktop -->        
-	<!--
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-android</artifactId>
-            <version>1.6.1-RC1</version>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
             <scope>runtime</scope>
         </dependency>
-        -->
-
+        
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit-dep</artifactId>
@@ -74,7 +68,7 @@
                     <source>1.6</source>
                     <target>1.6</target>
                 </configuration>
-            </plugin>                
+            </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
@@ -83,6 +77,12 @@
                             <mainClass>de.jetsli.graph.ui.MiniGraphUI</mainClass>
                         </manifest>
                     </archive>
+                    <!-- for usage on android -->
+                    <descriptors>
+                        <descriptor>src/main/assembly/android.xml</descriptor>
+                    </descriptors>
+                    
+                    <!-- for standalone usage -->
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
